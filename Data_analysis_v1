@@ -1,0 +1,420 @@
+import numpy as np
+import pandas as pd
+import warnings
+import re
+from scipy.stats import linregress
+from sklearn.linear_model import LinearRegression
+from openpyxl import Workbook
+import matplotlib.pyplot as plt
+import os
+import csv
+from datetime import datetime
+from matplotlib.ticker import FormatStrFormatter
+import matplotlib.ticker as ticker
+
+
+def _gamry_extraction(file_path, metadata_needed, usual_units, file_type):
+    with open(file_path, 'r', errors='ignore', encoding='utf-8') as f:
+        content = f.readlines()
+
+    content = [line.strip().split('\t') for line in content]
+    metadata = {}
+    data_start = -1
+    line_count = 0
+    cols = None
+
+    has_OCP_meas = False
+    ocp_start = -1
+    ocp_cols = None
+
+    for line in content:
+        if line[0] in metadata_needed.keys():
+            i = metadata_needed[line[0]]
+            metadata[line[0]] = line[i]
+
+        if line[0] == 'Pt':
+            if content[line_count - 1][0] == "OCVCURVE":
+                has_OCP_meas = True
+                ocp_start = line_count + 2
+                ocp_cols = line
+            else:
+                cols = line
+                data_start = line_count + 2
+                break
+
+        line_count += 1
+
+    if has_OCP_meas:
+        metadata['OCP_UNITS'] = content[ocp_start - 1]
+
+        ocp_content = []
+        for line in content[ocp_start:data_start - 4]:
+            line_content = []
+            for val in line:
+                try:
+                    fval = float(val)
+                    line_content.append(fval)
+                except:
+                    if re.match(r"^\.+$", val):  # check to see if val is just dots: "......"
+                        line_content.append(len(val))
+                    else:
+                        line_content.append(np.nan)
+
+            ocp_content.append(line_content)
+
+        ocp_df = pd.DataFrame(ocp_content, columns=ocp_cols).set_index('Pt', drop=True)
+        metadata['OCP_DF'] = ocp_df
+
+    assert cols is not None
+    assert data_start > 0
+
+    metadata['UNITS'] = content[data_start - 1]
+
+    # for i in range(len(content[data_start + 1])):
+    #     if content[data_start - 1][i] != usual_units[i]:
+    #         warnings.warn(f"Units are not consistent with typical gamry {file_type} files.") 
+
+    # data validation
+    data_content = []
+    for line in content[data_start:]:
+        line_content = []
+        for val in line:
+            try:
+                fval = float(val)
+                intval = int(fval)
+                if abs(fval - intval) < 1E-16:
+                    line_content.append(intval)
+                else:
+                    line_content.append(fval)
+            except:
+                if re.match(r"\.{2,}", val):  # check to see if val is just dots: "......"
+                    line_content.append(val)
+                else:
+                    line_content.append(np.nan)
+
+        data_content.append(line_content)
+
+    # data = np.array(content[data_start:], dtype=float)
+
+    data = pd.DataFrame(data_content, columns=cols).set_index('Pt', drop=True)
+    return data, metadata
+
+
+def extract_EIS(file_path):
+    """Extract EIS measurement data and metadata from an EIS Gamry File.
+    
+    Parameters
+    ----------
+    file_path : str
+        The location in which the Gamry file can be accessed.
+    
+    Returns
+    -------
+    Pandas DataFrame
+        A dataframe with the data collected by the potentiostat at each point
+    dict
+        A dictionary with information about the measurement such as the time started, etc.
+        
+    """
+
+    metadata_needed = {'TAG': 1, 'DATE': 2, 'TIME': 2, 'PSTAT': 2, 'FREQINIT': 2, 'FREQFINAL': 2,
+                       'PTSPERDEC': 2, 'VAC': 2, 'EOC': 2}
+    usual_units = ['#', 's', 'Hz', 'ohm', 'ohm', 'V', 'ohm', '°', 'A', 'V', '#']
+
+    data, metadata = _gamry_extraction(file_path, metadata_needed, usual_units, "EIS")
+    return data, metadata
+
+
+def extract_OCP(file_path):
+    """Extract OCP measurement data and metadata from an OCP Gamry File.
+    
+    Parameters
+    ----------
+    file_path : str
+        The location in which the Gamry file can be accessed.
+    
+    Returns
+    -------
+    Pandas DataFrame
+        A dataframe with the data collected by the potentiostat at each point
+    dict
+        A dictionary with information about the measurement such as the time started, etc.
+        
+    """
+    metadata_needed = {'TAG': 1, 'DATE': 2, 'TIME': 2, 'PSTAT': 2, 'SAMPLETIME': 2}  # needs to be in order found in the gamry .dta file
+    usual_units = ['#', 's', 'V vs. Ref.', 'V', 'V', 'bits']
+
+    data, metadata = _gamry_extraction(file_path, metadata_needed, usual_units, "OCP")
+    return data, metadata
+
+
+def extract_LPR(file_path):
+    """Extract EIS measurement data and metadata from an EIS Gamry File.
+    
+    Parameters
+    ----------
+    file_path : str
+        The location in which the Gamry file can be accessed.
+    
+    Returns
+    -------
+    Pandas DataFrame
+        A dataframe with the data collected by the potentiostat at each point
+    dict
+        A dictionary with information about the measurement such as the time started, etc.
+        
+    """
+    metadata_needed = {'TAG': 1, 'DATE': 2, 'TIME': 2, 'PSTAT': 2, 'VINIT': 2, 'VFINAL': 2, 'SCANRATE': 2,
+                       'SAMPLETIME': 2, 'IRCOMP': 2, 'EOC': 2}  # needs to be in order found in the gamry .dta file
+    usual_units = ['#', 's', 'V vs. Ref.', 'A', 'V', 'V', 'V', '#', 'bits']
+    data, metadata = _gamry_extraction(file_path, metadata_needed, usual_units, "LPR")
+
+    return data, metadata
+
+
+def calc_Rp(file_name, n_points=20):
+    data, metadata = extract_LPR(file_name)
+
+    flag = 0
+
+    r2 = 0.1
+    r2_des = 0.95
+
+    current = data['Im'].values.reshape((-1, 1))
+    voltage = data['Vf'].values
+
+    n_points_max = len(voltage) / 2
+
+    while r2 < r2_des and flag == 0:
+
+        ocp_point = np.argmin(abs(current))
+        fitting_I = current[(ocp_point - n_points):(ocp_point + n_points + 1)]
+        fitting_V = voltage[(ocp_point - n_points):(ocp_point + n_points + 1)]
+
+        model = LinearRegression().fit(fitting_I, fitting_V)
+
+        slope = model.coef_
+        r2 = model.score(fitting_I, fitting_V)
+
+        if r2 < r2_des:
+            n_points += 3
+            if n_points >= n_points_max:
+                warnings.warn('Desired value of $R^2$ not achieved')
+                flag = 1
+                break
+        break
+
+    return slope, metadata, r2
+
+
+# if __name__ == "__main__":
+#
+#     file_location = r'LPR_#1_#1_#3.DTA'
+#     # data, metadata = extract_LPR(file_location)
+#
+#     Rp = calc_Rp(file_location)
+#     print(Rp)
+
+wb = Workbook()
+ws = wb.active
+
+data_folder = r'D:\OneDrive\Research\Experimental Data\4-6-23 FeCO3 formation and H2S'
+exp_start = '2023-4-6 22:01'
+exp_start = datetime.strptime(exp_start, '%Y-%m-%d %H:%M')
+
+os.chdir(data_folder)
+data_list = os.listdir(data_folder)
+
+LPR_list = []
+EIS_list = []
+OCP_list = []
+
+for file in data_list:
+    if '_' in file and 'OCP' not in file and 'EIS' not in file:
+        LPR_list.append(file)
+    elif 'EIS' in file:
+        EIS_list.append(file)
+    elif 'OCP' in file:
+        OCP_list.append(file)
+
+marker_list = ['8', 's', 'o', '4', '.', 'v', 'p', 'h', '+', '2', '1', '3', ]
+counter = 0
+
+
+Ba = 0.04
+Bc = 0.12
+beta = (Ba * Bc) / ((2.303 * (Ba + Bc)))
+SA = 1.6
+Rs = 8.5
+print(beta)
+
+LPR_df = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
+
+for i in LPR_list:
+    print(i)
+    data_location = (data_folder + r"\\" + i)
+    [RP, metadata, score] = calc_Rp(data_location)
+    CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
+    time = metadata['TIME']
+    date = metadata['DATE']
+    OCP = metadata['EOC']
+    OCP = float(OCP)
+    if OCP == 0:
+        continue
+    when = time + ' ' + date
+    datetime_object = datetime.strptime(when, '%H:%M:%S %m/%d/%Y')
+    new_row = pd.DataFrame({'datetime': datetime_object, 'filename': i, 'CR': CR, 'OCP': OCP}, index=[counter])
+    LPR_df = pd.concat([LPR_df, new_row], ignore_index=True)
+    counter += 1
+
+result = LPR_df.drop([0])
+result.sort_values(by='datetime', ascending=True, inplace=True)
+
+dt = []
+
+fflag = 0
+hflag = 0
+CR_flag = 0
+
+for j in range(0, len(result)):
+    td = result.iloc[j, 0] - result.iloc[0, 0]
+    hours = td.total_seconds() / 3600
+    dt.append(hours)
+    if 'Flow' in result.iloc[j, 1] and fflag == 0:
+        flow_time = dt[j - 1]
+        flow_CR = result.iloc[j - 1, 2]
+        flow_OCP = result.iloc[j - 1, 3]
+        fflag = 1
+    if 'H2S' in result.iloc[j, 1] and hflag == 0:
+        h_time = dt[j - 1]
+        h_CR = result.iloc[j - 1, 2]
+        h_OCP = result.iloc[j - 1, 3]
+        hflag = 1
+    if result.iloc[j, 2] <= 0.1 and CR_flag == 0:
+        CR_time = dt[j - 1]
+        CR_CR = result.iloc[j - 1, 2]
+        CR_OCP = result.iloc[j - 1, 3]
+        CR_flag = 1
+
+label_font = {'name': 'Arial',
+              'weight': 'bold',
+              'color': 'black',
+              'size': 28,
+              }
+
+max_time = max(dt)
+
+max_CR = result['CR'].max()
+min_OCP = result['OCP'].min()
+max_OCP = result['OCP'].max()
+
+fig = plt.figure()
+ax1 = fig.add_subplot(2, 1, 1)
+ax1.plot(dt, result['CR'], marker='o', markersize=5, linestyle='dashed', color='blue')
+ax1.set_xlabel('Time / (hours)', fontdict=label_font)
+ax1.set_ylabel('Corrosion Rate / (mm/yr)', fontdict=label_font)
+ax1.set_ylim([0, max_CR + 0.2])
+ax1.set_xlim([0, max_time])
+# if CR_flag != 0:
+#     ax1.annotate('0.1 mm/yr', xy=(CR_time, CR_CR), xytext=(CR_time - 15, CR_CR + 0.2), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+if fflag != 0:
+    ax1.annotate('Flow', xy=(flow_time, flow_CR), xytext=(flow_time - 15, flow_CR + 0.2), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+if hflag != 0:
+    ax1.annotate(r'$H_2S$', xy=(h_time, h_CR), xytext=(h_time - 10, h_CR + 0.3), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+ax1.tick_params(axis='x', labelsize=20, length=5)
+ax1.tick_params(axis='y', labelsize=20, length=5, color='blue')
+ax1.spines['left'].set_position(('axes', 0.0))
+
+ax2 = fig.add_subplot(2, 1, 2, sharex=ax1)
+ax2.plot(dt, result['OCP'], marker='s', markersize=5, linestyle='dashed', color='red')
+ax2.set_xlabel('Time / (hours)', fontdict=label_font)
+ax2.set_ylabel('Potential vs Ag/AgCl / (V)', fontdict=label_font)
+ax2.set_ylim(min_OCP - 0.01, max_OCP + 0.01)
+ax2.set_xlim([0, max_time])
+# if CR_flag != 0:
+#     ax2.annotate('0.1 mm/yr', xy=(CR_time, CR_OCP), xytext=(CR_time - 15, CR_OCP + 0.01), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+if fflag != 0:
+    ax2.annotate('Flow', xy=(flow_time, flow_OCP), xytext=(flow_time - 15, flow_OCP + 0.01), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+if hflag != 0:
+    ax2.annotate(r'$H_2S$', xy=(h_time, h_OCP), xytext=(h_time, h_OCP - 0.01), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+ax2.tick_params(axis='x', labelsize=20, length=5)
+ax2.tick_params(axis='y', labelsize=20, length=5)
+# ax2.spines['left'].set_color('red')
+ax2.spines['left'].set_position(('axes', 0.0))
+
+counter = 0
+
+EIS_info = pd.DataFrame(columns=['datetime', 'filename', 'hours'], index=[0])
+
+for i in EIS_list:
+    data_location = (data_folder + r"\\" + i)
+    [EIS_data, metadata] = extract_EIS(data_location)
+    time = metadata['TIME']
+    date = metadata['DATE']
+    when = time + ' ' + date
+    datetime_object = datetime.strptime(when, '%H:%M:%S %m/%d/%Y')
+    dt = datetime_object - exp_start
+    hours = int(dt.total_seconds() / 3600)
+    new_row = pd.DataFrame({'datetime': datetime_object, 'filename': i, 'hours': hours}, index=[counter])
+    EIS_info = pd.concat([EIS_info, new_row], ignore_index=True)
+    counter += 1
+
+EIS_result = EIS_info.drop([0])
+EIS_result.sort_values(by='datetime', ascending=True, inplace=True)
+
+counter = 0
+
+fig1 = plt.figure()
+ax3 = fig1.add_subplot(1, 1, 1)
+ax3.set_xlabel(r'$Z_{real} / (\Omega)$', fontdict=label_font)
+ax3.set_ylabel(r'$Z_{imag} / (\Omega)$', fontdict=label_font)
+ax3.spines['left'].set_position(('axes', 0.0))
+ax3.tick_params(axis='x', labelsize=20, length=5)
+ax3.tick_params(axis='y', labelsize=20, length=5)
+
+fig2 = plt.figure()
+ax4 = fig2.add_subplot(2, 1, 1)
+ax4.set_xlabel('Frequency / (Hz)', fontdict=label_font)
+ax4.set_ylabel(r'$Z_{mod} / (\Omega)$', fontdict=label_font)
+ax4.set_xscale('log')
+ax4.spines['left'].set_position(('axes', 0.0))
+ax4.tick_params(axis='x', labelsize=20, length=5)
+ax4.tick_params(axis='y', labelsize=20, length=5)
+
+ax5 = fig2.add_subplot(2, 1, 2)
+ax5.set_xlabel('Frequency / (Hz)', fontdict=label_font)
+ax5.set_ylabel(r'$Z_{phase} / (\deg)$', fontdict=label_font)
+ax5.set_xscale('log')
+ax5.spines['left'].set_position(('axes', 0.0))
+ax5.tick_params(axis='x', labelsize=20, length=5)
+ax5.tick_params(axis='y', labelsize=20, length=5)
+
+
+for i in EIS_result['filename']:
+    data_location = (data_folder + r"\\" + i)
+    [EIS_data, metadata] = extract_EIS(data_location)
+    Values = pd.DataFrame(EIS_data).to_numpy()
+    Freq = Values[:, 1]
+    Zreal = Values[:, 2]
+    Zimag = Values[:, 3]
+    Zmod = Values[:, 5]
+    Zphz = Values[:, 6]
+    negZimag = -1 * Zimag
+    time = metadata['TIME']
+    date = metadata['DATE']
+    OCP = metadata['EOC']
+    OCP = float(OCP)
+    when = time + ' ' + date
+    datetime_object = datetime.strptime(when, '%H:%M:%S %m/%d/%Y')
+    new_row = pd.DataFrame({'datetime': datetime_object, 'filename': i, 'CR': CR, 'OCP': OCP}, index=[counter])
+    LPR_df = pd.concat([LPR_df, new_row], ignore_index=True)
+    ax3.plot(Zreal, negZimag, marker=marker_list[counter], label=str(EIS_result.iloc[counter, 2]) + ' hours', linestyle=' ', markersize=7)
+    ax4.plot(Freq, Zmod, marker=marker_list[counter], label=str(EIS_result.iloc[counter, 2]) + ' hours', linestyle=' ', markersize=7)
+    ax5.plot(Freq, Zphz, marker=marker_list[counter], label=str(EIS_result.iloc[counter, 2]) + ' hours', linestyle=' ', markersize=7)
+    counter += 1
+
+ax3.legend(loc='upper left', fontsize=20)
+ax4.legend(loc='best', fontsize=20)
+ax5.legend(loc='best', fontsize=20)
+
+plt.show()
