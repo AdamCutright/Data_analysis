@@ -172,7 +172,7 @@ def extract_LPR(file_path):
     return data, metadata
 
 
-def calc_Rp(file_name): #n_points=70):
+def calc_Rp(file_name):
     data, metadata = extract_LPR(file_name)
 
     flag = 0
