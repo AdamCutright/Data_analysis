@@ -172,7 +172,7 @@ def extract_LPR(file_path):
     return data, metadata
 
 
-def calc_Rp(file_name, n_points=20):
+def calc_Rp(file_name): #n_points=70):
     data, metadata = extract_LPR(file_name)
 
     flag = 0
@@ -182,8 +182,8 @@ def calc_Rp(file_name, n_points=20):
 
     current = data['Im'].values.reshape((-1, 1))
     voltage = data['Vf'].values
+    n_points = len(voltage) - 1
 
-    n_points_max = len(voltage) / 2
 
     while r2 < r2_des and flag == 0:
 
@@ -197,8 +197,8 @@ def calc_Rp(file_name, n_points=20):
         r2 = model.score(fitting_I, fitting_V)
 
         if r2 < r2_des:
-            n_points += 3
-            if n_points >= n_points_max:
+            n_points -= 1
+            if n_points <= 10:
                 warnings.warn('Desired value of $R^2$ not achieved')
                 flag = 1
                 break
@@ -218,7 +218,7 @@ def calc_Rp(file_name, n_points=20):
 wb = Workbook()
 ws = wb.active
 
-data_folder = r'D:\OneDrive\Research\Experimental Data\4-6-23 FeCO3 formation and H2S'
+data_folder = r'D:\OneDrive\Research\Experimental Data\11-19-23 FeCO3 formation with loop and H2S'
 exp_start = '2023-4-6 22:01'
 exp_start = datetime.strptime(exp_start, '%Y-%m-%d %H:%M')
 
@@ -254,6 +254,7 @@ for i in LPR_list:
     print(i)
     data_location = (data_folder + r"\\" + i)
     [RP, metadata, score] = calc_Rp(data_location)
+    print(RP)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
     time = metadata['TIME']
     date = metadata['DATE']
