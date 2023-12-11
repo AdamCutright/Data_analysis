@@ -178,11 +178,12 @@ def calc_Rp(file_name):
     flag = 0
 
     r2 = 0.1
-    r2_des = 0.95
+    r2_des = 0.97
 
     current = data['Im'].values.reshape((-1, 1))
     voltage = data['Vf'].values
     n_points = len(voltage) - 1
+    n_points_init = n_points
 
 
     while r2 < r2_des and flag == 0:
@@ -196,15 +197,19 @@ def calc_Rp(file_name):
         slope = model.coef_
         r2 = model.score(fitting_I, fitting_V)
 
+        n_points_final = n_points
+
         if r2 < r2_des:
             n_points -= 1
             if n_points <= 10:
                 warnings.warn('Desired value of $R^2$ not achieved')
                 flag = 1
                 break
+            else:
+                n_points_final = n_points
         break
 
-    return slope, metadata, r2
+    return slope, metadata, r2, n_points_init, n_points_final
 
 
 # if __name__ == "__main__":
@@ -253,8 +258,11 @@ LPR_df = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
 for i in LPR_list:
     print(i)
     data_location = (data_folder + r"\\" + i)
-    [RP, metadata, score] = calc_Rp(data_location)
+    [RP, metadata, score, n_points, final] = calc_Rp(data_location)
     print(RP)
+    print(score)
+    print(n_points)
+    print(final)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
     time = metadata['TIME']
     date = metadata['DATE']
