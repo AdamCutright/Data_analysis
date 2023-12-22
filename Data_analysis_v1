@@ -175,22 +175,25 @@ def extract_LPR(file_path):
 def calc_Rp(file_name):
     data, metadata = extract_LPR(file_name)
 
-    flag = 0
+    RP_df = pd.DataFrame(columns=['RP_val', 'r2', 'n_points'], index=[0])
+
+    counter = 0
 
     r2 = 0.1
     r2_des = 0.93
 
     current = data['Im'].values.reshape((-1, 1))
     voltage = data['Vf'].values
-    n_points = 10
 
-
-    while r2 < r2_des and flag == 0:
+    for n_points in range(10, 79):
 
         ocp_point = np.argmin(abs(current))
 
         min_ind = max([0, ocp_point - n_points])
         max_ind = min([len(current), ocp_point + n_points + 1])
+
+        # min_ind = ocp_point - n_points
+        # max_ind = ocp_point + n_points
 
         fitting_I = current[(min_ind):(max_ind)]
         fitting_V = voltage[(min_ind):(max_ind)]
@@ -200,16 +203,20 @@ def calc_Rp(file_name):
         slope = model.coef_
         r2 = model.score(fitting_I, fitting_V)
 
-        n_points += 1
+        new_row = pd.DataFrame({'RP_val': slope, 'r2': r2, 'n_points': n_points}, index=[counter])
+        RP_df = pd.concat([RP_df, new_row], ignore_index=True)
 
-        if max_ind >= len(voltage):
-            warnings.warn('Desired value of $R^2$ not achieved')
-            flag = 1
-            break
+        counter += 1
 
-    n_points_final = n_points
+    ordered = RP_df.drop([0])
+    ordered.sort_values(by='r2', ascending=False, inplace=True)
 
-    return slope, metadata, r2, n_points_final
+    RP_best = ordered.iloc[0, 0]
+    score_best = ordered.iloc[0, 1]
+    n_points_best = ordered.iloc[0, 2]
+
+
+    return RP_best, score_best, metadata, n_points_best
 
 
 # if __name__ == "__main__":
@@ -255,14 +262,14 @@ Rs = 8.5
 LPR_df = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
 
 for i in LPR_list:
-    print(i)
     data_location = (data_folder + r"\\" + i)
-    [RP, metadata, score, final] = calc_Rp(data_location)
-    # print(RP)
-    print(score)
-    print(final)
+    [RP, score, metadata, points_used] = calc_Rp(data_location)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
-    print(CR)
+    # print(i)
+    # print(RP)
+    # print(score)
+    # print(points_used)
+    # print(CR)
     time = metadata['TIME']
     date = metadata['DATE']
     OCP = metadata['EOC']
