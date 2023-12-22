@@ -184,6 +184,9 @@ def calc_Rp(file_name):
 
     current = data['Im'].values.reshape((-1, 1))
     voltage = data['Vf'].values
+    abs_curr = abs(current)
+
+    data.loc[:, "abs current"] = abs_curr
 
     for n_points in range(10, 79):
 
@@ -191,9 +194,6 @@ def calc_Rp(file_name):
 
         min_ind = max([0, ocp_point - n_points])
         max_ind = min([len(current), ocp_point + n_points + 1])
-
-        # min_ind = ocp_point - n_points
-        # max_ind = ocp_point + n_points
 
         fitting_I = current[(min_ind):(max_ind)]
         fitting_V = voltage[(min_ind):(max_ind)]
@@ -230,7 +230,7 @@ def calc_Rp(file_name):
 wb = Workbook()
 ws = wb.active
 
-data_folder = r'D:\OneDrive\Research\Experimental Data\11-19-23 FeCO3 formation with loop and H2S'
+data_folder = r'D:\OneDrive\Research\Experimental Data\11-19 test'
 exp_start = '2023-11-19 20:56'
 exp_start = datetime.strptime(exp_start, '%Y-%m-%d %H:%M')
 
@@ -260,12 +260,13 @@ SA = 1.6
 Rs = 8.5
 
 LPR_df = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
+# new_row = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
 
 for i in LPR_list:
     data_location = (data_folder + r"\\" + i)
     [RP, score, metadata, points_used] = calc_Rp(data_location)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
-    # print(i)
+    print(i)
     # print(RP)
     # print(score)
     # print(points_used)
@@ -280,6 +281,8 @@ for i in LPR_list:
     datetime_object = datetime.strptime(when, '%H:%M:%S %m/%d/%Y')
     new_row = pd.DataFrame({'datetime': datetime_object, 'filename': i, 'CR': CR, 'OCP': OCP}, index=[counter])
     LPR_df = pd.concat([LPR_df, new_row], ignore_index=True)
+    # print(new_row)
+    # print(LPR_df)
     counter += 1
 
 result = LPR_df.drop([0])
