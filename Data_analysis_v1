@@ -188,6 +188,10 @@ def calc_Rp(file_name):
 
     data.loc[:, "abs current"] = abs_curr
 
+    ocp_location = data[['abs current']].idxmin()
+    ocp_location = ocp_location[0]
+    ocp_calculated = data.at[ocp_location, 'Vf']
+
     for n_points in range(10, 79):
 
         ocp_point = np.argmin(abs(current))
@@ -203,10 +207,14 @@ def calc_Rp(file_name):
         slope = model.coef_
         r2 = model.score(fitting_I, fitting_V)
 
-        new_row = pd.DataFrame({'RP_val': slope, 'r2': r2, 'n_points': n_points}, index=[counter])
-        RP_df = pd.concat([RP_df, new_row], ignore_index=True)
+        if slope > 0:
+            new_row = pd.DataFrame({'RP_val': slope, 'r2': r2, 'n_points': n_points}, index=[counter])
+            RP_df = pd.concat([RP_df, new_row], ignore_index=True)
+            counter += 1
+        else:
+            continue
 
-        counter += 1
+        
 
     ordered = RP_df.drop([0])
     ordered.sort_values(by='r2', ascending=False, inplace=True)
@@ -216,7 +224,7 @@ def calc_Rp(file_name):
     n_points_best = ordered.iloc[0, 2]
 
 
-    return RP_best, score_best, metadata, n_points_best
+    return RP_best, score_best, metadata, n_points_best, ocp_calculated
 
 
 # if __name__ == "__main__":
@@ -230,7 +238,7 @@ def calc_Rp(file_name):
 wb = Workbook()
 ws = wb.active
 
-data_folder = r'D:\OneDrive\Research\Experimental Data\11-19 test'
+data_folder = r'D:\OneDrive\Research\Experimental Data\11-19-23 FeCO3 formation with loop and H2S'
 exp_start = '2023-11-19 20:56'
 exp_start = datetime.strptime(exp_start, '%Y-%m-%d %H:%M')
 
@@ -264,19 +272,21 @@ LPR_df = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
 
 for i in LPR_list:
     data_location = (data_folder + r"\\" + i)
-    [RP, score, metadata, points_used] = calc_Rp(data_location)
+    [RP, score, metadata, points_used, ocp_calc] = calc_Rp(data_location)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
     print(i)
-    # print(RP)
-    # print(score)
-    # print(points_used)
+    print(ocp_calc)
+    print(RP)
+    print(score)
+    print(points_used)
     # print(CR)
     time = metadata['TIME']
     date = metadata['DATE']
-    OCP = metadata['EOC']
+    # OCP = metadata['EOC']
+    OCP = ocp_calc
     OCP = float(OCP)
-    if OCP == 0:
-        continue
+    # if OCP == 0:
+    #     continue
     when = time + ' ' + date
     datetime_object = datetime.strptime(when, '%H:%M:%S %m/%d/%Y')
     new_row = pd.DataFrame({'datetime': datetime_object, 'filename': i, 'CR': CR, 'OCP': OCP}, index=[counter])
