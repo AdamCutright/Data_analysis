@@ -192,7 +192,7 @@ def calc_Rp(file_name):
     ocp_location = ocp_location[0]
     ocp_calculated = data.at[ocp_location, 'Vf']
 
-    for n_points in range(10, 79):
+    for n_points in range(5, 79):
 
         ocp_point = np.argmin(abs(current))
 
@@ -275,9 +275,9 @@ for i in LPR_list:
     [RP, score, metadata, points_used, ocp_calc] = calc_Rp(data_location)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
     print(i)
-    print(ocp_calc)
-    print(RP)
-    print(score)
+    # print(ocp_calc)
+    # print(RP)
+    # print(score)
     print(points_used)
     # print(CR)
     time = metadata['TIME']
