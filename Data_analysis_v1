@@ -223,8 +223,8 @@ def calc_Rp(file_name):
 wb = Workbook()
 ws = wb.active
 
-data_folder = r'D:\OneDrive\Research\Experimental Data\11-19-23 FeCO3 formation with loop and H2S'
-exp_start = '2023-11-19 20:56'
+data_folder = r'D:\OneDrive\Research\Experimental Data\1-16-23 FeCO3 formation with loop and drop pH'
+exp_start = '2024-1-16 15:49'
 exp_start = datetime.strptime(exp_start, '%Y-%m-%d %H:%M')
 
 os.chdir(data_folder)
@@ -256,6 +256,7 @@ LPR_df = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
 
 for i in LPR_list:
     print(i)
+<<<<<<< Updated upstream
     data_location = (data_folder + r"\\" + i)
     [RP, metadata, score, final] = calc_Rp(data_location)
     # print(RP)
@@ -263,6 +264,13 @@ for i in LPR_list:
     print(final)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
     print(CR)
+=======
+    # print(ocp_calc)
+    print(RP)
+    # print(score)
+    # print(points_used)
+    # print(CR)
+>>>>>>> Stashed changes
     time = metadata['TIME']
     date = metadata['DATE']
     OCP = metadata['EOC']
@@ -283,6 +291,7 @@ dt = []
 fflag = 0
 hflag = 0
 CR_flag = 0
+diss_flag = 0
 
 for j in range(0, len(result)):
     td = result.iloc[j, 0] - result.iloc[0, 0]
@@ -298,6 +307,11 @@ for j in range(0, len(result)):
         h_CR = result.iloc[j - 1, 2]
         h_OCP = result.iloc[j - 1, 3]
         hflag = 1
+    if 'Dissolution' in result.iloc[j, 1] and diss_flag == 0:
+        diss_time = dt[j - 1]
+        diss_CR = result.iloc[j - 1, 2]
+        diss_OCP = result.iloc[j - 1, 3]
+        diss_flag = 1
     if result.iloc[j, 2] <= 0.1 and CR_flag == 0:
         CR_time = dt[j - 1]
         CR_CR = result.iloc[j - 1, 2]
@@ -329,6 +343,8 @@ if fflag != 0:
     ax1.annotate('Flow', xy=(flow_time, flow_CR), xytext=(flow_time - 15, flow_CR + 0.2), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if hflag != 0:
     ax1.annotate(r'$H_2S$', xy=(h_time, h_CR), xytext=(h_time - 10, h_CR + 0.3), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+if diss_flag !=0:
+    ax1.annotate(r'pH change', xy=(diss_time, diss_CR), xytext=(diss_time - 10, diss_CR + 0.3), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 ax1.tick_params(axis='x', labelsize=20, length=5)
 ax1.tick_params(axis='y', labelsize=20, length=5, color='blue')
 ax1.spines['left'].set_position(('axes', 0.0))
