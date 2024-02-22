@@ -214,15 +214,12 @@ def calc_Rp(file_name):
         else:
             continue
 
-        
-
     ordered = RP_df.drop([0])
     ordered.sort_values(by='r2', ascending=False, inplace=True)
 
     RP_best = ordered.iloc[0, 0]
     score_best = ordered.iloc[0, 1]
     n_points_best = ordered.iloc[0, 2]
-
 
     return RP_best, score_best, metadata, n_points_best, ocp_calculated
 
@@ -268,37 +265,21 @@ SA = 1.6
 Rs = 8.5
 
 LPR_df = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
-# new_row = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
 
 for i in LPR_list:
     data_location = (data_folder + r"\\" + i)
     [RP, score, metadata, points_used, ocp_calc] = calc_Rp(data_location)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
     print(i)
-    # print(ocp_calc)
-    # print(RP)
-    # print(score)
-    print(points_used)
-    # print(CR)
-    print(CR)
-    # print(ocp_calc)
-    print(RP)
-    # print(score)
-    # print(points_used)
-    # print(CR)
     time = metadata['TIME']
     date = metadata['DATE']
-    # OCP = metadata['EOC']
     OCP = ocp_calc
     OCP = float(OCP)
-    # if OCP == 0:
-    #     continue
     when = time + ' ' + date
     datetime_object = datetime.strptime(when, '%H:%M:%S %m/%d/%Y')
     new_row = pd.DataFrame({'datetime': datetime_object, 'filename': i, 'CR': CR, 'OCP': OCP}, index=[counter])
     LPR_df = pd.concat([LPR_df, new_row], ignore_index=True)
-    # print(new_row)
-    # print(LPR_df)
+
     counter += 1
 
 result = LPR_df.drop([0])
