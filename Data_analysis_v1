@@ -214,8 +214,6 @@ def calc_Rp(file_name):
         else:
             continue
 
-        
-
     ordered = RP_df.drop([0])
     ordered.sort_values(by='r2', ascending=False, inplace=True)
 
@@ -223,22 +221,12 @@ def calc_Rp(file_name):
     score_best = ordered.iloc[0, 1]
     n_points_best = ordered.iloc[0, 2]
 
-
     return RP_best, score_best, metadata, n_points_best, ocp_calculated
-
-
-# if __name__ == "__main__":
-#
-#     file_location = r'LPR_#1_#1_#3.DTA'
-#     # data, metadata = extract_LPR(file_location)
-#
-#     Rp = calc_Rp(file_location)
-#     print(Rp)
 
 wb = Workbook()
 ws = wb.active
 
-data_folder = r'D:\OneDrive\Research\Experimental Data\1-16-23 FeCO3 formation with loop and drop pH'
+data_folder = r'D:\OneDrive\Research\Experimental Data\Testing'
 exp_start = '2024-1-16 15:49'
 exp_start = datetime.strptime(exp_start, '%Y-%m-%d %H:%M')
 
@@ -268,14 +256,13 @@ SA = 1.6
 Rs = 8.5
 
 LPR_df = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
-# new_row = pd.DataFrame(columns=['datetime', 'filename', 'CR', 'OCP'], index=[0])
 
 for i in LPR_list:
     data_location = (data_folder + r"\\" + i)
     [RP, score, metadata, points_used, ocp_calc] = calc_Rp(data_location)
     CR = ((beta / (RP - Rs)) * 3272 * 27.92) / (7.87 * SA)
-    print(i)
-    print(RP)
+    # print(i)
+    # print(CR)
     time = metadata['TIME']
     date = metadata['DATE']
     OCP = ocp_calc
@@ -288,6 +275,22 @@ for i in LPR_list:
 
 result = LPR_df.drop([0])
 result.sort_values(by='datetime', ascending=True, inplace=True)
+
+print(result)
+
+for i in range(1, len(result)):
+    file_name = result.iloc[i, 1]
+    file_location = (data_folder + r"\\" + file_name)
+    delta_CR = abs(result.iloc[i, 2] - result.iloc[i - 1, 2]) / ((result.iloc[i, 2] + result.iloc[i - 1, 2]) / 2)
+    if delta_CR > 0.3:
+        delta_CR = abs(result.iloc[i + 1, 2] - result.iloc[i - 1, 2]) / ((result.iloc[i + 1, 2] + result.iloc[i - 1, 2]) / 2)
+        if delta_CR < 0.2:
+            # os.remove(file_name)
+            print(i+1)
+            result.drop(labels=[i + 1])
+            print('dropping data from', file_name)
+
+print(result)
 
 dt = []
 
@@ -340,8 +343,6 @@ ax1.set_xlabel('Time / (hours)', fontdict=label_font)
 ax1.set_ylabel('Corrosion Rate / (mm/yr)', fontdict=label_font)
 ax1.set_ylim([0, max_CR + 0.2])
 ax1.set_xlim([0, max_time])
-# if CR_flag != 0:
-#     ax1.annotate('0.1 mm/yr', xy=(CR_time, CR_CR), xytext=(CR_time - 15, CR_CR + 0.2), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if fflag != 0:
     ax1.annotate('Flow', xy=(flow_time, flow_CR), xytext=(flow_time - 15, flow_CR + 0.2), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if hflag != 0:
@@ -418,7 +419,7 @@ ax5.tick_params(axis='y', labelsize=20, length=5)
 
 
 for i in EIS_result['filename']:
-    print(i)
+    # print(i)
     data_location = (data_folder + r"\\" + i)
     [EIS_data, metadata] = extract_EIS(data_location)
     Values = pd.DataFrame(EIS_data).to_numpy()
