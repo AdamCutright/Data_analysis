@@ -276,21 +276,22 @@ for i in LPR_list:
 result = LPR_df.drop([0])
 result.sort_values(by='datetime', ascending=True, inplace=True)
 
-print(result)
+i = 1
 
-for i in range(1, len(result)):
+while i < len(result) - 1:
     file_name = result.iloc[i, 1]
+    print(file_name)
     file_location = (data_folder + r"\\" + file_name)
     delta_CR = abs(result.iloc[i, 2] - result.iloc[i - 1, 2]) / ((result.iloc[i, 2] + result.iloc[i - 1, 2]) / 2)
     if delta_CR > 0.3:
         delta_CR = abs(result.iloc[i + 1, 2] - result.iloc[i - 1, 2]) / ((result.iloc[i + 1, 2] + result.iloc[i - 1, 2]) / 2)
         if delta_CR < 0.2:
-            # os.remove(file_name)
-            print(i+1)
-            result.drop(labels=[i + 1])
+            result = result.drop(labels=[i + 1])
             print('dropping data from', file_name)
-
-print(result)
+        else:
+            i += 1
+    else: 
+        continue
 
 dt = []
 
