@@ -223,15 +223,6 @@ def calc_Rp(file_name):
 
     return RP_best, score_best, metadata, n_points_best, ocp_calculated
 
-
-# if __name__ == "__main__":
-#
-#     file_location = r'LPR_#1_#1_#3.DTA'
-#     # data, metadata = extract_LPR(file_location)
-#
-#     Rp = calc_Rp(file_location)
-#     print(Rp)
-
 wb = Workbook()
 ws = wb.active
 
@@ -336,8 +327,6 @@ ax1.set_xlabel('Time / (hours)', fontdict=label_font)
 ax1.set_ylabel('Corrosion Rate / (mm/yr)', fontdict=label_font)
 ax1.set_ylim([0, max_CR + 0.2])
 ax1.set_xlim([0, max_time])
-# if CR_flag != 0:
-#     ax1.annotate('0.1 mm/yr', xy=(CR_time, CR_CR), xytext=(CR_time - 15, CR_CR + 0.2), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if fflag != 0:
     ax1.annotate('Flow', xy=(flow_time, flow_CR), xytext=(flow_time - 15, flow_CR + 0.2), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if hflag != 0:
@@ -354,15 +343,12 @@ ax2.set_xlabel('Time / (hours)', fontdict=label_font)
 ax2.set_ylabel('Potential vs Ag/AgCl / (V)', fontdict=label_font)
 ax2.set_ylim(min_OCP - 0.01, max_OCP + 0.01)
 ax2.set_xlim([0, max_time])
-# if CR_flag != 0:
-#     ax2.annotate('0.1 mm/yr', xy=(CR_time, CR_OCP), xytext=(CR_time - 15, CR_OCP + 0.01), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if fflag != 0:
     ax2.annotate('Flow', xy=(flow_time, flow_OCP), xytext=(flow_time - 15, flow_OCP + 0.01), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if hflag != 0:
     ax2.annotate(r'$H_2S$', xy=(h_time, h_OCP), xytext=(h_time, h_OCP - 0.01), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 ax2.tick_params(axis='x', labelsize=20, length=5)
 ax2.tick_params(axis='y', labelsize=20, length=5)
-# ax2.spines['left'].set_color('red')
 ax2.spines['left'].set_position(('axes', 0.0))
 
 counter = 0
