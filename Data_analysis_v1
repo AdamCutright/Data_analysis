@@ -226,7 +226,7 @@ def calc_Rp(file_name):
 wb = Workbook()
 ws = wb.active
 
-data_folder = r'D:\OneDrive\Research\Experimental Data\Testing'
+data_folder = r'D:\OneDrive\Research\Experimental Data\1-16-23 FeCO3 formation with loop and drop pH'
 exp_start = '2024-1-16 15:49'
 exp_start = datetime.strptime(exp_start, '%Y-%m-%d %H:%M')
 
@@ -278,20 +278,15 @@ result.sort_values(by='datetime', ascending=True, inplace=True)
 
 i = 1
 
-while i < len(result) - 1:
+for i in range(len(result) - 1):
     file_name = result.iloc[i, 1]
-    print(file_name)
     file_location = (data_folder + r"\\" + file_name)
     delta_CR = abs(result.iloc[i, 2] - result.iloc[i - 1, 2]) / ((result.iloc[i, 2] + result.iloc[i - 1, 2]) / 2)
     if delta_CR > 0.3:
         delta_CR = abs(result.iloc[i + 1, 2] - result.iloc[i - 1, 2]) / ((result.iloc[i + 1, 2] + result.iloc[i - 1, 2]) / 2)
         if delta_CR < 0.2:
-            result = result.drop(labels=[i + 1])
-            print('dropping data from', file_name)
-        else:
-            i += 1
-    else: 
-        continue
+            print(file_name)
+
 
 dt = []
 
@@ -340,16 +335,20 @@ max_OCP = result['OCP'].max()
 fig = plt.figure()
 ax1 = fig.add_subplot(2, 1, 1)
 ax1.plot(dt, result['CR'], marker='o', markersize=5, linestyle='dashed', color='blue')
+# ax1.plot([0, max_time], [0.1, 0.1], linestyle='dashed', color='black') #use if you want a dashed line at a particular corrosion rate
 ax1.set_xlabel('Time / (hours)', fontdict=label_font)
 ax1.set_ylabel('Corrosion Rate / (mm/yr)', fontdict=label_font)
 ax1.set_ylim([0, max_CR + 0.2])
 ax1.set_xlim([0, max_time])
 if fflag != 0:
-    ax1.annotate('Flow', xy=(flow_time, flow_CR), xytext=(flow_time - 15, flow_CR + 0.2), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+    ax1.annotate('Flow', xy=(flow_time, flow_CR), xytext=(flow_time - 15, flow_CR + 0.2), 
+                 arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if hflag != 0:
-    ax1.annotate(r'$H_2S$', xy=(h_time, h_CR), xytext=(h_time - 10, h_CR + 0.3), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+    ax1.annotate(r'$H_2S$', xy=(h_time, h_CR), xytext=(h_time - 10, h_CR + 0.3), 
+                 arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if diss_flag !=0:
-    ax1.annotate(r'pH change', xy=(diss_time, diss_CR), xytext=(diss_time - 10, diss_CR + 0.3), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+    ax1.annotate(r'pH change', xy=(diss_time, diss_CR), xytext=(diss_time - 10, diss_CR + 0.3), 
+                 arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 ax1.tick_params(axis='x', labelsize=20, length=5)
 ax1.tick_params(axis='y', labelsize=20, length=5, color='blue')
 ax1.spines['left'].set_position(('axes', 0.0))
@@ -361,9 +360,11 @@ ax2.set_ylabel('Potential vs Ag/AgCl / (V)', fontdict=label_font)
 ax2.set_ylim(min_OCP - 0.01, max_OCP + 0.01)
 ax2.set_xlim([0, max_time])
 if fflag != 0:
-    ax2.annotate('Flow', xy=(flow_time, flow_OCP), xytext=(flow_time - 15, flow_OCP + 0.01), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+    ax2.annotate('Flow', xy=(flow_time, flow_OCP), xytext=(flow_time - 15, flow_OCP + 0.01), 
+                 arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if hflag != 0:
-    ax2.annotate(r'$H_2S$', xy=(h_time, h_OCP), xytext=(h_time, h_OCP - 0.01), arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
+    ax2.annotate(r'$H_2S$', xy=(h_time, h_OCP), xytext=(h_time, h_OCP - 0.01), 
+                 arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 ax2.tick_params(axis='x', labelsize=20, length=5)
 ax2.tick_params(axis='y', labelsize=20, length=5)
 ax2.spines['left'].set_position(('axes', 0.0))
