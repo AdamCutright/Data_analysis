@@ -276,18 +276,17 @@ result = LPR_df.drop([0])
 result.sort_values(by='datetime', ascending=True, inplace=True)
 
 for i in range(1, len(result)):
-    if i == len(result):
+    if (i + 1) == len(result):
         break
     else:
         file_name = result.iloc[i, 1]
         file_location = (data_folder + r"\\" + file_name)
-        delta_CR = abs(result.iloc[i, 2] - result.iloc[i - 1, 2]) / (result.iloc[i - 1, 2])
-        if delta_CR > 0.05:
-            delta_CR = abs(result.iloc[i + 1, 2] - result.iloc[i - 1, 2]) / (result.iloc[i - 1, 2])
-            if delta_CR < 0.3:
-                print('need to drop', file_name, 'from dataframe')
-                idx = result.index[result['filename'] == file_name].to_list()
-                result = result.drop(idx)
+        delta_CR1 = abs(result.iloc[i, 2] - result.iloc[i - 1, 2]) / (result.iloc[i - 1, 2])
+        delta_CR2 = abs(result.iloc[i + 1, 2] - result.iloc[i - 1, 2]) / (result.iloc[i - 1, 2])
+        if (delta_CR1 > 0.15 and delta_CR2 < 0.25) or (delta_CR1 > 1.5):
+            print('need to drop', file_name, 'from dataframe')
+            idx = result.index[result['filename'] == file_name].to_list()
+            result = result.drop(idx)
 
 dt = []
 
@@ -349,7 +348,7 @@ if hflag != 0:
     ax1.annotate(r'$H_2S$', xy=(h_time, h_CR), xytext=(h_time - 10, h_CR + 0.3), 
                  arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 if diss_flag !=0:
-    ax1.annotate(r'pH change', xy=(diss_time, diss_CR), xytext=(diss_time - 10, diss_CR + 0.3), 
+    ax1.annotate(r'pH change', xy=(diss_time, diss_CR), xytext=(diss_time - 10, diss_CR + 0.7), 
                  arrowprops=dict(facecolor='black', shrink=0.1, width=7, headwidth=12), fontsize=25)
 ax1.tick_params(axis='x', labelsize=20, length=5)
 ax1.tick_params(axis='y', labelsize=20, length=5, color='blue')
